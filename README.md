@@ -56,16 +56,10 @@ It fetches live ADS-B JSON data over Wi-Fi (e.g. from a local ADS-B receiver / t
 
 ---
 
-## Configuration (Config.h)
+## Configuration
 
-You must provide a `Config.h` (or edit yours) with at least:
-
-- Your home location:
-  - `HOME_LAT`, `HOME_LON`
-- ADS-B JSON endpoint:
-  - `AIRCRAFT_URL`
-- Map projection parameters:
-  - `MAP_ZOOM`, `MAP_PX0`, `MAP_PY0`
+All user-specific settings are located in **`Config.h`**.  
+You **must** update this file before compiling.
 
 ---
 
