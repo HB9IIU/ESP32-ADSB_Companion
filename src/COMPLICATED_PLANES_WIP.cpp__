@@ -1,0 +1,252 @@
+#include <TFT_eSPI.h>
+#include <SPI.h>
+#include <pgmspace.h>
+#include <math.h>
+
+#include "background565.h"
+#include "plane32_360.h"
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+TFT_eSPI tft = TFT_eSPI();
+
+static const int SW = 480;
+static const int SH = 320;
+
+static const int PW = plane32_w;
+static const int PH = plane32_h;
+static const int STRIDE = plane32_stride;
+
+static uint16_t lineBuf[PW];
+
+static const bool DRAW_ZERO_BITS = false;
+
+// sprite mapping (your working fix)
+static const bool SPRITE_CCW = true;
+static const int  SPRITE_OFFSET_DEG = 0;
+static const bool SPRITE_FLIP_180 = false;
+
+// --------- Flicker reduction tuning ---------
+static const int NUM_PLANES = 8;
+// how many planes to update per frame (1..8)
+static const int PLANES_PER_FRAME = 2;
+
+// -------------------------------------------
+// Background
+// -------------------------------------------
+void drawFullBackground()
+{
+  static uint16_t row[SW];
+  for (int y = 0; y < SH; y++) {
+    const uint16_t *src = bg565 + (y * SW);
+    memcpy_P(row, src, SW * sizeof(uint16_t));
+    tft.pushImage(0, y, SW, 1, row);
+  }
+}
+
+void restoreBgRect(int x, int y, int w, int h)
+{
+  if (x < 0) { w += x; x = 0; }
+  if (y < 0) { h += y; y = 0; }
+  if (x + w > SW) w = SW - x;
+  if (y + h > SH) h = SH - y;
+  if (w <= 0 || h <= 0) return;
+
+  for (int row = 0; row < h; row++) {
+    const uint16_t *src = bg565 + ((y + row) * SW + x);
+    memcpy_P(lineBuf, src, w * sizeof(uint16_t));
+    tft.pushImage(x, y + row, w, 1, lineBuf);
+  }
+}
+
+// -------------------------------------------
+// Plane draw
+// -------------------------------------------
+static inline const uint8_t* planeMaskForHeading(int headingDeg)
+{
+  headingDeg %= 360;
+  if (headingDeg < 0) headingDeg += 360;
+
+  uint32_t off = 0;
+  memcpy_P(&off, &plane32_offset[headingDeg], sizeof(plane32_offset[headingDeg]));
+  return plane32_masks + off;
+}
+
+void drawMask1bit_PROGMEM(int x0, int y0,
+                          const uint8_t *maskProgmem,
+                          int w, int h, int stride,
+                          uint16_t color)
+{
+  for (int y = 0; y < h; y++) {
+    int x = 0;
+    while (x < w) {
+      while (x < w) {
+        int byteIndex = y * stride + (x >> 3);
+        uint8_t b = pgm_read_byte(maskProgmem + byteIndex);
+        int bit = 7 - (x & 7);
+
+        bool on = (b & (1 << bit)) != 0;
+        if (DRAW_ZERO_BITS) on = !on;
+
+        if (on) break;
+        x++;
+      }
+      if (x >= w) break;
+
+      int xStart = x;
+
+      while (x < w) {
+        int byteIndex = y * stride + (x >> 3);
+        uint8_t b = pgm_read_byte(maskProgmem + byteIndex);
+        int bit = 7 - (x & 7);
+
+        bool on = (b & (1 << bit)) != 0;
+        if (DRAW_ZERO_BITS) on = !on;
+
+        if (!on) break;
+        x++;
+      }
+
+      tft.drawFastHLine(x0 + xStart, y0 + y, x - xStart, color);
+    }
+  }
+}
+
+static inline int headingFromVelocity_North0(int vx, int vy)
+{
+  float a = atan2f((float)vx, (float)(-vy)) * 180.0f / (float)M_PI;
+  int deg = (int)lroundf(a);
+  deg %= 360;
+  if (deg < 0) deg += 360;
+  return deg;
+}
+
+static inline int mapHeadingToSprite(int headingDeg)
+{
+  int h = headingDeg % 360;
+  if (h < 0) h += 360;
+
+  if (SPRITE_CCW) h = (360 - h) % 360;
+  h = (h + SPRITE_OFFSET_DEG) % 360;
+  if (SPRITE_FLIP_180) h = (h + 180) % 360;
+
+  return h;
+}
+
+void drawPlaneAtTopLeft(int x0, int y0, int spriteHeadingDeg, uint16_t color)
+{
+  const uint8_t *maskPtr = planeMaskForHeading(spriteHeadingDeg);
+  drawMask1bit_PROGMEM(x0, y0, maskPtr, PW, PH, STRIDE, color);
+}
+
+// -------------------------------------------
+// Multi-plane
+// -------------------------------------------
+struct Plane {
+  int x, y;
+  int oldX, oldY;
+  int vx, vy;
+  uint16_t color;
+};
+
+static Plane planes[NUM_PLANES];
+
+static const uint16_t palette[] = {
+  TFT_RED, TFT_BLUE, TFT_CYAN, TFT_WHITE,
+  TFT_YELLOW, TFT_GREEN, TFT_MAGENTA, TFT_ORANGE
+};
+
+void bouncePlane(Plane &p)
+{
+  if (p.x <= 0)       { p.x = 0;       p.vx = -p.vx; }
+  if (p.x >= SW - PW) { p.x = SW - PW; p.vx = -p.vx; }
+  if (p.y <= 0)       { p.y = 0;       p.vy = -p.vy; }
+  if (p.y >= SH - PH) { p.y = SH - PH; p.vy = -p.vy; }
+}
+
+void initPlanes()
+{
+  // 8 deterministic starting positions + velocities
+  const int xs[NUM_PLANES]  = {  20, 140, 260, 380,  60, 180, 300, 420 };
+  const int ys[NUM_PLANES]  = {  20,  50,  80, 110, 210, 240, 170, 200 };
+  const int vxs[NUM_PLANES] = {   3,  -2,   4,  -3,  -4,   3,  -3,   2 };
+  const int vys[NUM_PLANES] = {   2,   3,  -2,  -3,   2,  -4,   3,  -2 };
+
+  for (int i = 0; i < NUM_PLANES; i++) {
+    planes[i].x = xs[i];
+    planes[i].y = ys[i];
+    planes[i].oldX = planes[i].x;
+    planes[i].oldY = planes[i].y;
+    planes[i].vx = vxs[i];
+    planes[i].vy = vys[i];
+    planes[i].color = palette[i % (sizeof(palette) / sizeof(palette[0]))];
+  }
+}
+
+void setup()
+{
+  Serial.begin(115200);
+
+  pinMode(TFT_BLP, OUTPUT);
+  digitalWrite(TFT_BLP, HIGH);
+
+  tft.init();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);
+
+  // keep  working value for the RGB565 background array
+  tft.setSwapBytes(true);
+
+  tft.startWrite();
+  drawFullBackground();
+  tft.endWrite();
+
+  initPlanes();
+
+  // Draw all once
+  tft.startWrite();
+  for (int i = 0; i < NUM_PLANES; i++) {
+    int heading = headingFromVelocity_North0(planes[i].vx, planes[i].vy);
+    int spriteHeading = mapHeadingToSprite(heading);
+    drawPlaneAtTopLeft(planes[i].x, planes[i].y, spriteHeading, planes[i].color);
+  }
+  tft.endWrite();
+}
+
+void loop()
+{
+  static int idx = 0;
+
+  // Update only PLANES_PER_FRAME planes per frame
+  for (int k = 0; k < PLANES_PER_FRAME; k++) {
+    int i = idx;
+
+    // erase this plane
+    tft.startWrite();
+    restoreBgRect(planes[i].oldX, planes[i].oldY, PW, PH);
+    tft.endWrite();
+
+    // move + bounce
+    planes[i].x += planes[i].vx;
+    planes[i].y += planes[i].vy;
+    bouncePlane(planes[i]);
+
+    // draw it
+    int heading = headingFromVelocity_North0(planes[i].vx, planes[i].vy);
+    int spriteHeading = mapHeadingToSprite(heading);
+
+    tft.startWrite();
+    drawPlaneAtTopLeft(planes[i].x, planes[i].y, spriteHeading, planes[i].color);
+    tft.endWrite();
+
+    planes[i].oldX = planes[i].x;
+    planes[i].oldY = planes[i].y;
+
+    idx++;
+    if (idx >= NUM_PLANES) idx = 0;
+  }
+
+  delay(10);
+}
