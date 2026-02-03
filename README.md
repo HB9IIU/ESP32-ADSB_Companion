@@ -69,56 +69,80 @@ You must provide a `Config.h` (or edit yours) with at least:
 
 ---
 
+# Map Background Generator (RGB565)
+
 ## IMPORTANT: Generate your own map background (background565.h)
 
 This project **does not** auto-create the map background.  
 You must generate `background565.h` for **your own location** using the included Python tools.
 
-### Where the Python tools are
+---
 
-In the repo:
+## Where the Python tools are
+
+In the repository:
 
 - `pythonTools/GoogleMaps.py`
 - `pythonTools/OpenStreetMaps.py`
 
-### Choose ONE
+---
+
+## Choose ONE map source
 
 Use **one or the other**:
 
-- **GoogleMaps.py** (Google tiles / Google-based workflow)
-- **OpenStreetMaps.py** (OpenStreetMap tiles)
+- **GoogleMaps.py** — Google tiles (requires Google Static Maps API key)
+- **OpenStreetMaps.py** — OpenStreetMap tiles (no API key required)
 
-Both scripts are meant to produce the same output: a **480×320 RGB565 header file** used by the ESP32 code:
+Both scripts generate the same output:
 
-- `src/background565.h`
-
-### How to use
-
-Open the script you want to use (**GoogleMaps.py** or **OpenStreetMaps.py**) and follow the instructions **inside the code**.
-
-Inside the script you will set things like:
-
-- `CENTER_LAT = 46.4717185`
-- `CENTER_LON = 6.4767709`
-- `RANGE_KM   = 80`
-
-Change the map center and coverage to match your location.
+- `src/background565.h`  
+- Resolution: **480 × 320**
+- Format: **RGB565**
 
 ---
 
-### Google Maps vs OpenStreetMap configuration
+## How to use
 
-The required settings depend on which script you use.
+Open the script you want to use (`GoogleMaps.py` or `OpenStreetMaps.py`) and follow the instructions **inside the code**.
 
-#### If you use `GoogleMaps.py` (Google Static Maps)
+Inside the script you will configure values such as:
+
+- `CENTER_LAT`
+- `CENTER_LON`
+- `RANGE_KM`
+
+Example:
+
+```python
+CENTER_LAT = 46.4717185
+CENTER_LON = 6.4767709
+RANGE_KM   = 80
+```
+
+Change these values to match your location and desired map coverage.
+
+---
+
+## Google Maps vs OpenStreetMap configuration
+
+The required configuration depends on which script you use.
+
+---
+
+### If you use GoogleMaps.py (Google Static Maps)
 
 **Google Static Maps requires an API key.**
 
-Get a valid key here:  
-https://console.cloud.google.com/apis/credentials  
-(Enable **Static Maps API** for your project, then create an API key.)
+Create a key here:  
+https://console.cloud.google.com/apis/credentials
 
-In `GoogleMaps.py`, you must set:
+You must:
+1. Create a Google Cloud project
+2. Enable **Static Maps API**
+3. Create an API key
+
+Then edit `GoogleMaps.py`:
 
 ```python
 # ============================ USER SETTINGS =================================
@@ -126,20 +150,24 @@ In `GoogleMaps.py`, you must set:
 # Get a valid key here:
 # https://console.cloud.google.com/apis/credentials
 # (Enable "Static Maps API" for your project, then create an API key)
-GOOGLE_MAPS_KEY = "YOUR_GOOGLE_STATIC_MAPS_API_KEY_HERE"  # example: fake key
+GOOGLE_MAPS_KEY = "YOUR_GOOGLE_STATIC_MAPS_API_KEY_HERE"
 
 # --- Map center & size ---
 CENTER_LAT = 46.4717185
 CENTER_LON = 6.4767709
 RANGE_KM   = 80
 # ============================================================================
+```
+
 > **Note:** Google may require billing to be enabled (even if you stay within the free tier).
 
-**If you use `OpenStreetMaps.py`**
+---
 
-OpenStreetMap does not require an API key.
+### If you use OpenStreetMaps.py
 
-In `OpenStreetMaps.py`, you only need:
+**OpenStreetMap does not require an API key.**
+
+Edit `OpenStreetMaps.py` and set only the map parameters:
 
 ```python
 # =============================== USER SETTINGS ===============================
@@ -148,14 +176,24 @@ CENTER_LAT = 46.4717185
 CENTER_LON = 6.4767709
 RANGE_KM   = 80
 # =============================================================================
+```
+
+---
+
+## Output
+
+The script will generate an RGB565 background image and save it as:
+
+```
+src/background565.h
+```
+
+This file is used directly by the ESP32 firmware.
 
 
-# =============================== USER SETTINGS ===============================
-# --- Map center & size ---
-CENTER_LAT = 46.4717185
-CENTER_LON = 6.4767709
-RANGE_KM   = 80
-# =============================================================================
+
+
+
 
 ### After generating the background
 
