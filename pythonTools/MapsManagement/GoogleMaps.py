@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw
 
 # ============================ USER SETTINGS =================================
 # --- Google Static Maps API key (PUT YOUR KEY HERE) ---
-GOOGLE_MAPS_KEY = "69AIzaSyAWpgxpxah1JAuXXbHNQRUXDLUI93Mr5wM"
+GOOGLE_MAPS_KEY = "69AIzaSyAWpgxpxah1JAuXXbHNQRUXDLUI93Mr5wM"  # this is a fake key
 
 # --- Map center & size ---
 CENTER_LAT = 46.4717185
