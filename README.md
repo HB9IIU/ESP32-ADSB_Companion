@@ -13,7 +13,7 @@ It fetches live ADS-B JSON data over Wi-Fi (e.g. from a local ADS-B receiver / t
 
 - 480x320 map background (stored as `background565.h` in PROGMEM)
 - Fetch aircraft JSON every `FETCH_PERIOD_MS` (default 1000 ms)
-- Track up to `MAX_TRACKS` aircraft with TTL expiry
+- Track up to `MAX_TRACKS` aircrafts 
 - Draw up to `MAX_DRAW` aircraft per refresh (performance knob)
 - Altitude color bands + legend bar at the top
 - Bottom status bar with differential text update (reduced flicker)
@@ -97,9 +97,9 @@ Both scripts are meant to produce the same output: a **480×320 RGB565 header fi
 Open the script you want to use (**GoogleMaps.py** or **OpenStreetMaps.py**) and follow the instructions **inside the code**.  
 Inside the script you will set things like:
 
-CENTER_LAT = 46.4717185
-CENTER_LON = 6.4767709
-RANGE_KM   = 80
+- CENTER_LAT = 46.4717185
+- CENTER_LON = 6.4767709
+- RANGE_KM   = 80
 
 Change the map center and coverage to match your location:
 
