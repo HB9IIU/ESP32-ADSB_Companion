@@ -5,8 +5,7 @@ It fetches live ADS-B JSON data over Wi-Fi (e.g. from a local ADS-B receiver / t
 
 ## Video
 
-Demo / overview video:  
-https://youtu.be/luJIPpM341g
+[![ESP32 ADS-B Companion Demo](https://img.youtube.com/vi/luJIPpM341g/hqdefault.jpg)](https://youtu.be/luJIPpM341g)
 
 ---
 
