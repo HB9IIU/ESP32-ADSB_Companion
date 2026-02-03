@@ -6,3 +6,5 @@ pythonTools/**
 
 !pythonTools/MapsManagement/GoogleMaps.py
 !pythonTools/MapsManagement/OpenStreetMaps.py
+.pio/
+.vscode/
