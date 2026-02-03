@@ -97,9 +97,12 @@ Both scripts are meant to produce the same output: a **480×320 RGB565 header fi
 Open the script you want to use (**GoogleMaps.py** or **OpenStreetMaps.py**) and follow the instructions **inside the code**.  
 Inside the script you will set things like:
 
-- your **latitude / longitude**
-- the **zoom level**
-- and the **output file name**
+# --- Map center & size ---
+CENTER_LAT = 46.4717185
+CENTER_LON = 6.4767709
+RANGE_KM   = 80
+
+Change the map center and coverage to match your location:
 
 The script will generate the RGB565 background and save it as a C header file (typically `background565.h`).
 
@@ -120,5 +123,9 @@ If these do not match your generated map, aircraft icons will not line up with t
 In `platformio.ini` choose a build target:
 
 ```ini
+
 [platformio]
+; Pick the default build target here:
+;default_envs = cyd4_st7796
+;default_envs = ext_ili9488_dc5
 default_envs = ext_ili9488_dc0_antenna
