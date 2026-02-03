@@ -97,7 +97,6 @@ Both scripts are meant to produce the same output: a **480×320 RGB565 header fi
 Open the script you want to use (**GoogleMaps.py** or **OpenStreetMaps.py**) and follow the instructions **inside the code**.  
 Inside the script you will set things like:
 
-# --- Map center & size ---
 CENTER_LAT = 46.4717185
 CENTER_LON = 6.4767709
 RANGE_KM   = 80
