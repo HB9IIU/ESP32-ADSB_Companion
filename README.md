@@ -94,16 +94,68 @@ Both scripts are meant to produce the same output: a **480×320 RGB565 header fi
 
 ### How to use
 
-Open the script you want to use (**GoogleMaps.py** or **OpenStreetMaps.py**) and follow the instructions **inside the code**.  
+Open the script you want to use (**GoogleMaps.py** or **OpenStreetMaps.py**) and follow the instructions **inside the code**.
+
 Inside the script you will set things like:
 
-- CENTER_LAT = 46.4717185
-- CENTER_LON = 6.4767709
-- RANGE_KM   = 80
+- `CENTER_LAT = 46.4717185`
+- `CENTER_LON = 6.4767709`
+- `RANGE_KM   = 80`
 
-Change the map center and coverage to match your location:
+Change the map center and coverage to match your location.
 
-The script will generate the RGB565 background and save it as a C header file (typically `background565.h`).
+---
+
+### Google Maps vs OpenStreetMap configuration
+
+The required settings depend on which script you use.
+
+#### If you use `GoogleMaps.py` (Google Static Maps)
+
+**Google Static Maps requires an API key.**
+
+Get a valid key here:  
+https://console.cloud.google.com/apis/credentials  
+(Enable **Static Maps API** for your project, then create an API key.)
+
+In `GoogleMaps.py`, you must set:
+
+```python
+# ============================ USER SETTINGS =================================
+# --- Google Static Maps API key ---
+# Get a valid key here:
+# https://console.cloud.google.com/apis/credentials
+# (Enable "Static Maps API" for your project, then create an API key)
+GOOGLE_MAPS_KEY = "YOUR_GOOGLE_STATIC_MAPS_API_KEY_HERE"  # example: fake key
+
+# --- Map center & size ---
+CENTER_LAT = 46.4717185
+CENTER_LON = 6.4767709
+RANGE_KM   = 80
+# ============================================================================
+> **Note:** Google may require billing to be enabled (even if you stay within the free tier).
+
+**If you use `OpenStreetMaps.py`**
+
+OpenStreetMap does not require an API key.
+
+In `OpenStreetMaps.py`, you only need:
+
+```python
+# =============================== USER SETTINGS ===============================
+# --- Map center & size ---
+CENTER_LAT = 46.4717185
+CENTER_LON = 6.4767709
+RANGE_KM   = 80
+# =============================================================================
+
+
+# =============================== USER SETTINGS ===============================
+# --- Map center & size ---
+CENTER_LAT = 46.4717185
+CENTER_LON = 6.4767709
+RANGE_KM   = 80
+# =============================================================================
 
 ### After generating the background
 
