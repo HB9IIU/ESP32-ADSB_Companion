@@ -1,0 +1,80 @@
+# ESP32 ADS-B Companion (4" TFT Plane Radar)
+
+This project runs on an ESP32 with a 480x320 TFT and shows nearby aircraft on a static map background.  
+It fetches live ADS-B JSON data over Wi-Fi (e.g. from a local ADS-B receiver / tar1090 / dump1090 JSON endpoint), tracks aircraft, and renders small plane icons oriented by heading. Plane color is based on altitude bands. A bottom bar shows summary stats and nearest aircraft.
+
+## Features
+
+- 480x320 map background (stored as `background565.h` in PROGMEM)
+- Fetch aircraft JSON every `FETCH_PERIOD_MS` (default 1000 ms)
+- Track up to `MAX_TRACKS` aircraft with TTL expiry
+- Draw up to `MAX_DRAW` aircraft per refresh (performance knob)
+- Altitude color bands + legend bar at the top
+- Bottom status bar with differential text update (reduced flicker)
+- Splash screen with fade in/out + backlight control
+- Three PlatformIO build targets:
+  - CYD 4" integrated board (ST7796)
+  - External 4" TFT (ILI9488) + standard ESP32 DevKit (DC=GPIO5)
+  - External 4" TFT (ILI9488) + ESP32U antenna variant (DC=GPIO0)
+
+---
+
+## Hardware
+
+### Supported displays / targets
+
+1. **CYD 4" integrated board (ST7796)**  
+   PlatformIO env: `cyd4_st7796`
+
+2. **External 4" TFT (ILI9488) + standard ESP32 DevKit** (TFT_DC = GPIO5)  
+   PlatformIO env: `ext_ili9488_dc5`
+
+3. **External 4" TFT (ILI9488) + ESP32U / antenna variant** (TFT_DC = GPIO0)  
+   PlatformIO env: `ext_ili9488_dc0_antenna`
+
+Touch is defined in `platformio.ini` (TOUCH_CS). This project currently uses touch only via TFT_eSPI config (no UI buttons in this sketch).
+
+---
+
+## Software / Libraries
+
+- PlatformIO (Arduino framework)
+- `TFT_eSPI`
+- `ArduinoJson`
+- `HTTPClient`
+- Custom libraries (in your `/lib` folder):
+  - `HB9IIU_RobustWIfiConnection.h`
+  - `HB9IIU_BacklightControl.h`
+- Static images / assets:
+  - `background565.h` (generated)
+  - `splash565.h`
+  - `plane32_360.h`
+
+---
+
+## Configuration (Config.h)
+
+You must provide a `Config.h` (or edit yours) with at least:
+
+- Your home location:
+  - `HOME_LAT`, `HOME_LON`
+- ADS-B JSON endpoint:
+  - `AIRCRAFT_URL`
+- Map projection parameters:
+  - `MAP_ZOOM`, `MAP_PX0`, `MAP_PY0`
+
+Example idea (names must match your project):
+
+```c
+// Config.h (example)
+#pragma once
+
+#define HOME_LAT  46.12345
+#define HOME_LON  7.12345
+
+#define AIRCRAFT_URL "http://your-adsb-host/data/aircraft.json"
+
+// Map calibration values for your background image
+#define MAP_ZOOM 10
+#define MAP_PX0  123456.0
+#define MAP_PY0  654321.0
