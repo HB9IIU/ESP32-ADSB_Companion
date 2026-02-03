@@ -2,7 +2,6 @@
 #include <HB9IIU_RobustWIfiConnection.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-
 #include <TFT_eSPI.h>
 #include <SPI.h>
 #include <pgmspace.h>
