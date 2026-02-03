@@ -1,7 +1,8 @@
 
-
 pythonTools/**
+
 !pythonTools/
 !pythonTools/**/
-!pythonTools/GoogleMaps.py
-!pythonTools/OpenStreetMaps.py
+
+!pythonTools/MapsManagement/GoogleMaps.py
+!pythonTools/MapsManagement/OpenStreetMaps.py
