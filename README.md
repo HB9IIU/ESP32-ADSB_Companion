@@ -212,3 +212,5 @@ In `platformio.ini` choose a build target:
 ;default_envs = cyd4_st7796
 ;default_envs = ext_ili9488_dc5
 default_envs = ext_ili9488_dc0_antenna
+
+test
