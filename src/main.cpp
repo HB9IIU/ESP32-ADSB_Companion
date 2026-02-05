@@ -1086,7 +1086,7 @@ tft.endWrite();
         gBlDirty = true;
       }
     }
-
+Serial.println(gBl);
     gLastTouchMs = millis(); // update "activity"
   }
 
