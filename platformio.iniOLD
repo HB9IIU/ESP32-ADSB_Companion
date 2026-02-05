@@ -1,0 +1,146 @@
+; =========================================================
+; One codebase, three build targets:
+;
+; 1) CYD 4" integrated board (ST7796)                       -> env:cyd4_st7796
+; 2) External 4" TFT (ILI9488) + "standard" ESP32 DevKit    -> env:ext_ili9488_dc5
+; 3) External 4" TFT (ILI9488) + ESP32U "antenna" variant   -> env:ext_ili9488_dc0_antenna
+; 4) External 4" TFT (ILI9488) IPS Version + "standard" ESP32 DevKit    -> env:ext_ili9488_dc5_IPS
+;                                           
+; =========================================================
+
+[platformio]
+; Pick the default build target here:
+;default_envs = cyd4_st7796
+;default_envs = ext_ili9488_dc5
+;default_envs = ext_ili9488_dc0_antenna
+default_envs = ext_ili9488_dc5_IPS
+
+
+[env]
+platform = espressif32@6.9.0
+board = esp32dev
+framework = arduino
+monitor_speed = 115200
+board_build.partitions = huge_app.csv
+
+; ---- Flags common to all builds ----
+build_flags =
+    -D USER_SETUP_LOADED
+    -D SPI_TOUCH_FREQUENCY=2500000
+
+    ; Basic fonts common to all
+    -D LOAD_GLCD=1
+    -D LOAD_FONT2
+
+
+; =========================
+; 1) CYD 4" (ST7796)
+; =========================
+[env:cyd4_st7796]
+build_flags =
+    ${env.build_flags}
+
+    ; TFT_eSPI driver + CYD wiring
+    -D ST7796_DRIVER
+    -D TFT_MISO=12
+    -D TFT_MOSI=13
+    -D TFT_SCLK=14
+    -D TFT_CS=15
+    -D TFT_DC=2
+    -D TFT_RST=-1
+    -D USE_HSPI_PORT
+
+    ; Touch
+    -D TOUCH_CS=33
+
+    ; SPI speeds
+    -D SPI_FREQUENCY=55000000
+    -D SPI_READ_FREQUENCY=20000000
+
+    ; Backlight (PWM owned by your code)
+    -D HB9_BL_PIN=27
+    -D HB9_BL_ACTIVE_HIGH=1
+    -D HB9_BL_DEFAULT_PERCENT=30
+
+    ; Extra fonts you used on CYD
+    -D LOAD_FONT4
+    -D LOAD_FONT7
+    -D LOAD_GFXFF
+    -D SMOOTH_FONT
+
+
+; ===================================================
+; External ILI9488 base (shared wiring except TFT_DC)
+; ===================================================
+[env:ext_ili9488_base]
+build_flags =
+    ${env.build_flags}
+
+    -D ILI9488_DRIVER
+    -D TFT_CS=15
+    -D TFT_RST=2
+    -D TFT_MOSI=23
+    -D TFT_SCLK=18
+    -D TFT_MISO=19
+
+    ; Touch
+    -D TOUCH_CS=22
+
+    ; SPI speeds
+    -D SPI_FREQUENCY=27000000
+    -D SPI_READ_FREQUENCY=16000000
+
+    ; Backlight (PWM owned by your code)
+    -D HB9_BL_PIN=4
+    -D HB9_BL_ACTIVE_HIGH=1
+    -D HB9_BL_DEFAULT_PERCENT=85
+
+
+; =========================
+; 2) External ILI9488 (DC=GPIO5) "standard ESP32"
+; =========================
+[env:ext_ili9488_dc5]
+build_flags =
+    ${env:ext_ili9488_base.build_flags}
+    -D TFT_DC=5
+
+
+; =========================
+; 3) External ILI9488 (DC=GPIO0) "ESP32U / antenna variant"
+; =========================
+[env:ext_ili9488_dc0_antenna]
+build_flags =
+    ${env:ext_ili9488_base.build_flags}
+    -D TFT_DC=0
+
+; =========================
+; =========================
+
+
+; ===================================================
+; 4) External ILI9488 (TFT_DC=5) "ESP32U / ISP"
+; ===================================================
+[env:ext_ili9488_dc5_IPS]
+build_flags =
+    ${env.build_flags}
+
+    -D ILI9488_DRIVER
+    -D TFT_CS=15
+    -D TFT_RST=2
+    -D TFT_MOSI=23
+    -D TFT_SCLK=18
+    -D TFT_MISO=19
+    -D TFT_DC=5
+    -D HB9_TFT_INVERT=1
+
+    ; Touch
+    -D TOUCH_CS=22
+
+    ; SPI speeds
+    -D SPI_FREQUENCY=27000000
+    -D SPI_READ_FREQUENCY=16000000
+
+    ; Backlight (PWM owned by your code)
+    -D HB9_BL_PIN=4
+    -D HB9_BL_ACTIVE_HIGH=1
+    -D HB9_BL_DEFAULT_PERCENT=20

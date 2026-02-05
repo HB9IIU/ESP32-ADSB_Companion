@@ -1,0 +1,35 @@
+#include <TFT_eSPI.h>
+TFT_eSPI tft;
+
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+
+  tft.init();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString("EXT ILI9488 touch test", 10, 10, 2);
+
+  Serial.println("Touch test running...");
+}
+
+void loop() {
+  uint16_t x, y;
+
+  // IMPORTANT: release any TFT transaction before touch
+  tft.endWrite();
+
+  if (tft.getTouch(&x, &y)) {
+    // If you need invert Y on this setup:
+    // y = 320 - y;
+
+    Serial.printf("TOUCH x=%u y=%u\n", x, y);
+    tft.fillCircle(x, y, 3, TFT_WHITE);
+    delay(50);
+  } else {
+    // prove the loop is alive
+    static uint32_t last=0;
+    if (millis() - last > 1000) { last = millis(); Serial.println("no touch"); }
+  }
+}

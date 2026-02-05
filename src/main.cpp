@@ -1045,14 +1045,22 @@ static const char *PREF_KEY_BL = "bl";
 
 void handleTouchBrightnessAndSave()
 {
-  
+
   // Ensure any pending TFT write transaction is not holding the SPI bus
 tft.endWrite();
   
   // 1) Handle touch -> change brightness
   uint16_t touchX, touchY;
+
+
+
+
   if (tft.getTouch(&touchX, &touchY))
   {
+   
+         // TEMP DEBUG:
+    Serial.printf("TOUCH raw x=%u y=%u\n", touchX, touchY);
+   
     // Y invert
     touchY = SH - touchY;
 
@@ -1064,7 +1072,7 @@ tft.endWrite();
     {
       lastStepMs = now;
 
-      const uint8_t step = 2;
+      const uint8_t step = 5;
       uint8_t old = gBl;
 
       if (touchY < (SH / 2)) // upper half => brighter
@@ -1244,7 +1252,6 @@ void setup()
   // Block here until we see a valid JSON stream (or timeout)
   waitForValidAircraftStream(10000, 800); // 20s max, retry every 0.8s
 
-  delay(4000);
 }
 
 void loop()
