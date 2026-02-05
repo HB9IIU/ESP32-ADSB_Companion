@@ -10,6 +10,7 @@
 #include "plane32_360.h"
 #include <HB9IIU_BacklightControl.h>
 #include "splash565.h"
+#include <Preferences.h>
 
 // Track storage limit
 static const int MAX_TRACKS = 200;
@@ -39,9 +40,8 @@ static const bool DEBUG_HEADING_MAP = false; // prints heading mapping
 // ===================== Stats for bottom bar =====================
 // Total aircraft entries in JSON, how many have position, how many are drawn
 static volatile int gTotalRaw = 0;
-static volatile int gWithPos  = 0;
+static volatile int gWithPos = 0;
 static volatile int gSeen = 0;
-
 
 // ===================== TFT / Sprites =====================
 TFT_eSPI tft = TFT_eSPI();
@@ -337,10 +337,6 @@ struct Track
 };
 
 static Track tracks[MAX_TRACKS];
-
-
-
-
 
 static int findTrackByHex(const char *hex)
 {
@@ -638,10 +634,9 @@ static bool fetchAndUpdateTracks()
     if (!hex[0])
       continue;
 
-const double seen = a["seen"] | 9999.0;
-if (seen <= MAX_SEEN_S) totalShown++;
-
-
+    const double seen = a["seen"] | 9999.0;
+    if (seen <= MAX_SEEN_S)
+      totalShown++;
 
     if (!a["lat"].is<double>() || !a["lon"].is<double>())
       continue;
@@ -651,9 +646,7 @@ if (seen <= MAX_SEEN_S) totalShown++;
     if (seen_pos > MAX_SEEN_POS_S)
       continue;
 
-
     fresh++;
-
 
     const double lat = a["lat"].as<double>();
     const double lon = a["lon"].as<double>();
@@ -726,12 +719,11 @@ if (seen <= MAX_SEEN_S) totalShown++;
     Serial.printf("--- FETCH --- heap=%u rssi=%d dBm\n", ESP.getFreeHeap(), WiFi.RSSI());
     Serial.printf("HTTP 200  (dt=%ums)\n", (unsigned)(t1 - t0));
     Serial.printf("now=%.1f aircraft=%d\n", now, totalRaw);
-Serial.printf("stats: seen<=%.0fs=%d (raw=%d) withPos=%d posFresh<=%.0fs=%d within%.0fkm=%d updated=%d\n",
-              MAX_SEEN_S, totalShown, totalRaw, withPos, MAX_SEEN_POS_S, fresh, RANGE_KM, within, updated);
-
+    Serial.printf("stats: seen<=%.0fs=%d (raw=%d) withPos=%d posFresh<=%.0fs=%d within%.0fkm=%d updated=%d\n",
+                  MAX_SEEN_S, totalShown, totalRaw, withPos, MAX_SEEN_POS_S, fresh, RANGE_KM, within, updated);
   }
-gSeen    = totalShown;
-gWithPos = withPos;
+  gSeen = totalShown;
+  gWithPos = withPos;
   return true;
 }
 
@@ -816,10 +808,10 @@ static void updateBottomBar(const int drawIdx[], int nDraw)
 {
   // Compute NEAR / FAR over the planes we are actually drawing
   double nearKm = 1e9;
-  double farKm  = 0.0;
-  int nearSlot  = -1;
+  double farKm = 0.0;
+  int nearSlot = -1;
 
-  int maxAltM = -1;   // <<< ADDED
+  int maxAltM = -1; // <<< ADDED
 
   for (int k = 0; k < nDraw; k++)
   {
@@ -828,7 +820,7 @@ static void updateBottomBar(const int drawIdx[], int nDraw)
 
     if (dkm < nearKm)
     {
-      nearKm   = dkm;
+      nearKm = dkm;
       nearSlot = drawIdx[k];
     }
     if (dkm > farKm)
@@ -870,9 +862,6 @@ static void updateBottomBar(const int drawIdx[], int nDraw)
 
   drawBottomBarTextDiff(line);
 }
-
-
-
 
 // ===================== Render =====================
 static void renderTracks()
@@ -1028,7 +1017,6 @@ static void displaySplashScreen(uint32_t holdMs)
   tft.startWrite();
   drawFullBackground();
   drawLegendBar();
-  drawBottomBarTextDiff("               Waiting For WiFi Connection............");
   tft.endWrite();
 
   // Fade in again
@@ -1039,23 +1027,231 @@ static void displaySplashScreen(uint32_t holdMs)
   }
 }
 
+#ifndef HB9_TFT_INVERT
+#define HB9_TFT_INVERT 0
+#endif
+
+// BRIGTHNESS HANDLING
+Preferences prefs;
+
+static uint8_t gBl = HB9_BL_DEFAULT_PERCENT; // current brightness
+static uint8_t gBlSaved = 255;               // last saved value (init invalid)
+static bool gBlDirty = false;
+static uint32_t gLastTouchMs = 0;
+
+static const uint32_t BL_SAVE_IDLE_MS = 5000; // save after 5s no touch
+static const char *PREF_NS = "ui";
+static const char *PREF_KEY_BL = "bl";
+
+void handleTouchBrightnessAndSave()
+{
+  
+  // Ensure any pending TFT write transaction is not holding the SPI bus
+tft.endWrite();
+  
+  // 1) Handle touch -> change brightness
+  uint16_t touchX, touchY;
+  if (tft.getTouch(&touchX, &touchY))
+  {
+    // Y invert
+    touchY = SH - touchY;
+
+    static uint32_t lastStepMs = 0;
+    uint32_t now = millis();
+
+    // limit repeat rate while finger is down
+    if (now - lastStepMs >= 180)
+    {
+      lastStepMs = now;
+
+      const uint8_t step = 2;
+      uint8_t old = gBl;
+
+      if (touchY < (SH / 2)) // upper half => brighter
+        gBl = (gBl + step > 100) ? 100 : (gBl + step);
+      else // lower half => dimmer
+        gBl = (gBl < step) ? 0 : (gBl - step);
+
+      if (gBl != old)
+      {
+        backlightSetPercent(gBl);
+        gBlDirty = true;
+      }
+    }
+
+    gLastTouchMs = millis(); // update "activity"
+  }
+
+  // 2) Save only after inactivity window
+  if (gBlDirty)
+  {
+    uint32_t now = millis();
+    if ((now - gLastTouchMs) >= BL_SAVE_IDLE_MS)
+    {
+      // only write if different from last saved value
+      if (gBl != gBlSaved)
+      {
+        prefs.putUChar(PREF_KEY_BL, gBl);
+        gBlSaved = gBl;
+        Serial.printf("Saved brightness: %u%%\n", gBl);
+      }
+      gBlDirty = false;
+    }
+  }
+}
+
+static bool waitForValidAircraftStream(uint32_t maxWaitMs, uint32_t retryDelayMs)
+{
+  const uint32_t tStart = millis();
+  uint32_t attempts = 0;
+  Serial.println("");
+  Serial.println("🛰️  Stream check: waiting for valid aircraft JSON…");
+
+  while ((millis() - tStart) < maxWaitMs)
+  {
+    attempts++;
+
+    const uint32_t elapsed = millis() - tStart;
+    Serial.printf("🔎 Try #%lu | ⏱️ %lums / %lums | 📶 WiFi=%s\n",
+                  (unsigned long)attempts,
+                  (unsigned long)elapsed,
+                  (unsigned long)maxWaitMs,
+                  (WiFi.status() == WL_CONNECTED) ? "OK ✅" : "DOWN ❌");
+
+    // Bottom bar progress
+    {
+
+      const uint32_t elapsedS = (millis() - tStart) / 1000;
+      const uint32_t totalS = maxWaitMs / 1000;
+      char msg[80];
+      snprintf(msg, sizeof(msg),
+               "                 JSON Stream check... #%lu  %lus / %lus",
+               (unsigned long)attempts,
+               (unsigned long)elapsedS,
+               (unsigned long)totalS);
+
+      tft.startWrite();
+      drawBottomBarTextDiff(msg);
+      tft.endWrite();
+    }
+
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      Serial.println("⚠️  WiFi not connected yet… waiting…");
+      delay(retryDelayMs);
+      continue;
+    }
+
+    HTTPClient http;
+    http.setTimeout(3500);
+    http.setReuse(false);
+    http.begin(AIRCRAFT_URL);
+
+    Serial.println(String("🌐 HTTP GET → ") + AIRCRAFT_URL);
+
+    const uint32_t t0 = millis();
+    int code = http.GET();
+    const uint32_t t1 = millis();
+
+    if (code != 200)
+    {
+      Serial.printf("❌ HTTP failed: %d | ⏱️%lums\n", code, (unsigned long)(t1 - t0));
+      http.end();
+      delay(retryDelayMs);
+      continue;
+    }
+
+    Serial.printf("✅ HTTP 200 OK | ⏱️%lums | parsing JSON…\n", (unsigned long)(t1 - t0));
+
+    JsonDocument doc;
+
+    DeserializationError err = deserializeJson(doc, *http.getStreamPtr());
+    http.end();
+
+    if (err)
+    {
+      Serial.printf("💥 JSON parse error: %s\n", err.c_str());
+      delay(retryDelayMs);
+      continue;
+    }
+
+    // require "now" and "aircraft" array
+const bool hasNow = !doc["now"].isNull();
+const bool hasAircraftArray = doc["aircraft"].is<JsonArray>();
+
+    if (!hasNow || !hasAircraftArray)
+    {
+      Serial.printf("⚠️  JSON structure not ready: now=%s aircraft[]=%s\n",
+                    hasNow ? "YES ✅" : "NO ❌",
+                    hasAircraftArray ? "YES ✅" : "NO ❌");
+      delay(retryDelayMs);
+      continue;
+    }
+
+    // Optional: count aircraft entries (may be 0 and still valid)
+    int n = doc["aircraft"].as<JsonArray>().size();
+    double nowVal = doc["now"] | 0.0;
+
+    Serial.printf("🎯 Stream OK ✅ | now=%.1f | ✈️ aircraft=%d\n", nowVal, n);
+
+    tft.startWrite();
+    drawBottomBarTextDiff("                      Data stream OK.......");
+    tft.endWrite();
+    Serial.println("");
+    return true;
+  }
+
+  Serial.println("⏳❌ Stream check TIMEOUT: no valid aircraft JSON received.");
+
+  tft.startWrite();
+  drawBottomBarTextDiff("                  Stream timeout (no valid JSON stream)");
+  tft.endWrite();
+  delay(2000);
+  tft.startWrite();
+  drawBottomBarTextDiff("                         Rebooting.......");
+  tft.endWrite();
+  delay(2000);
+  ESP.restart();
+  return false;
+}
+static void wifiBannerToTFT(const char *msg)
+{
+  tft.startWrite();
+  drawBottomBarTextDiff(msg);
+  tft.endWrite();
+}
 // ===================== Setup / Loop =====================
 void setup()
 {
-  
-  delay(5000);
   Serial.begin(115200);
   tft.init();
   tft.setRotation(1);
+  tft.invertDisplay(HB9_TFT_INVERT);
   tft.fillScreen(TFT_BLACK);
   tft.setSwapBytes(true);
   backlightInit();
+
+  prefs.begin(PREF_NS, false);
+  gBl = prefs.getUChar(PREF_KEY_BL, HB9_BL_DEFAULT_PERCENT);
+  gBlSaved = gBl;
+  backlightSetPercent(gBl);
+
   displaySplashScreen(2000);
+  setWifiStatusBannerCallback(wifiBannerToTFT);
+
   HB9IIUWifiConnection();
+
+  // Block here until we see a valid JSON stream (or timeout)
+  waitForValidAircraftStream(10000, 800); // 20s max, retry every 0.8s
+
+  delay(4000);
 }
 
 void loop()
 {
+
+  handleTouchBrightnessAndSave();
+
   static uint32_t lastFetch = 0;
   const uint32_t now = millis();
 

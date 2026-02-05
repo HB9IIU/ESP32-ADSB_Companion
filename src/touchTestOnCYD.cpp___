@@ -1,0 +1,29 @@
+#include <TFT_eSPI.h>
+TFT_eSPI tft;
+
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+
+  tft.init();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString("Touch test", 10, 10, 2);
+
+  Serial.println("Touch test running...");
+}
+
+void loop() {
+  uint16_t x, y;
+
+  // If touch is detected, this returns true
+  if (tft.getTouch(&x, &y)) {
+    // If you need Y invert on your CYD, do it here:
+    y = 320 - y;
+
+    Serial.printf("TOUCH x=%u y=%u\n", x, y);
+    tft.fillCircle(x, y, 3, TFT_WHITE);
+    delay(50);
+  }
+}
