@@ -1047,20 +1047,17 @@ void handleTouchBrightnessAndSave()
 {
 
   // Ensure any pending TFT write transaction is not holding the SPI bus
-tft.endWrite();
-  
+  tft.endWrite();
+
   // 1) Handle touch -> change brightness
   uint16_t touchX, touchY;
 
-
-
-
   if (tft.getTouch(&touchX, &touchY))
   {
-   
-         // TEMP DEBUG:
+
+    // TEMP DEBUG:
     Serial.printf("TOUCH raw x=%u y=%u\n", touchX, touchY);
-   
+
     // Y invert
     touchY = SH - touchY;
 
@@ -1086,7 +1083,7 @@ tft.endWrite();
         gBlDirty = true;
       }
     }
-Serial.println(gBl);
+    Serial.println(gBl);
     gLastTouchMs = millis(); // update "activity"
   }
 
@@ -1184,8 +1181,8 @@ static bool waitForValidAircraftStream(uint32_t maxWaitMs, uint32_t retryDelayMs
     }
 
     // require "now" and "aircraft" array
-const bool hasNow = !doc["now"].isNull();
-const bool hasAircraftArray = doc["aircraft"].is<JsonArray>();
+    const bool hasNow = !doc["now"].isNull();
+    const bool hasAircraftArray = doc["aircraft"].is<JsonArray>();
 
     if (!hasNow || !hasAircraftArray)
     {
@@ -1228,8 +1225,6 @@ static void wifiBannerToTFT(const char *msg)
   drawBottomBarTextDiff(msg);
   tft.endWrite();
 }
-
-
 
 static void setGamma_ILI9488()
 {
@@ -1274,11 +1269,6 @@ static void setGamma_ILI9488()
   tft.endWrite();
 }
 
-
-
-
-
-
 // ===================== Setup / Loop =====================
 void setup()
 {
@@ -1294,7 +1284,7 @@ void setup()
   gBl = prefs.getUChar(PREF_KEY_BL, HB9_BL_DEFAULT_PERCENT);
   gBlSaved = gBl;
   backlightSetPercent(gBl);
-setGamma_ILI9488();
+  setGamma_ILI9488();
   displaySplashScreen(2000);
   setWifiStatusBannerCallback(wifiBannerToTFT);
 
@@ -1302,7 +1292,6 @@ setGamma_ILI9488();
 
   // Block here until we see a valid JSON stream (or timeout)
   waitForValidAircraftStream(10000, 800); // 20s max, retry every 0.8s
-
 }
 
 void loop()
