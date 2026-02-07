@@ -135,6 +135,8 @@ fi
 if systemctl list-unit-files | grep -q '^readsb\.service'; then
   ok "readsb already installed; skipping installer"
 else
+  warn "Installing readsb now (this can take a little while)..."
+  warn "You may see a line like: 'old priority 0, new priority 10' — that's normal (service renice)."
   sudo bash -c "$(wget -q -O - https://raw.githubusercontent.com/wiedehopf/adsb-scripts/master/readsb-install.sh)"
   ok "readsb installed"
 fi
