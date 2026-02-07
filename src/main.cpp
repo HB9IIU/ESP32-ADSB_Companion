@@ -1228,6 +1228,57 @@ static void wifiBannerToTFT(const char *msg)
   drawBottomBarTextDiff(msg);
   tft.endWrite();
 }
+
+
+
+static void setGamma_ILI9488()
+{
+  tft.startWrite();
+
+  // P-Gamma (0xE0)
+  tft.writecommand(0xE0);
+  tft.writedata(0x00);
+  tft.writedata(0x08);
+  tft.writedata(0x0C);
+  tft.writedata(0x02);
+  tft.writedata(0x0E);
+  tft.writedata(0x04);
+  tft.writedata(0x30);
+  tft.writedata(0x45);
+  tft.writedata(0x47);
+  tft.writedata(0x04);
+  tft.writedata(0x0C);
+  tft.writedata(0x0A);
+  tft.writedata(0x2E);
+  tft.writedata(0x34);
+  tft.writedata(0x0F);
+
+  // N-Gamma (0xE1)
+  tft.writecommand(0xE1);
+  tft.writedata(0x00);
+  tft.writedata(0x11);
+  tft.writedata(0x0D);
+  tft.writedata(0x01);
+  tft.writedata(0x0F);
+  tft.writedata(0x05);
+  tft.writedata(0x39);
+  tft.writedata(0x36);
+  tft.writedata(0x51);
+  tft.writedata(0x06);
+  tft.writedata(0x0F);
+  tft.writedata(0x0D);
+  tft.writedata(0x33);
+  tft.writedata(0x37);
+  tft.writedata(0x0F);
+
+  tft.endWrite();
+}
+
+
+
+
+
+
 // ===================== Setup / Loop =====================
 void setup()
 {
@@ -1243,7 +1294,7 @@ void setup()
   gBl = prefs.getUChar(PREF_KEY_BL, HB9_BL_DEFAULT_PERCENT);
   gBlSaved = gBl;
   backlightSetPercent(gBl);
-
+setGamma_ILI9488();
   displaySplashScreen(2000);
   setWifiStatusBannerCallback(wifiBannerToTFT);
 
