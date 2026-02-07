@@ -201,6 +201,8 @@ In `platformio.ini` choose a build target:
 default_envs = ext_ili9488_dc0_antenna
 ;default_envs = ext_ili9488_dc5_IPS
 
+```
+
 # Raspberry Pi ADS-B Receiver Setup
 (readsb + tar1090)
 
