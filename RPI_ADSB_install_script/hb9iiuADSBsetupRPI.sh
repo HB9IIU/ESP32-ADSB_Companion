@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-
+clear
 # 🛰️ ADS-B Receiver Setup Script (Raspberry Pi OS Lite / Debian)
 # Author: Daniel S. (HB9IIU)
 # Created: 2026-02-07
