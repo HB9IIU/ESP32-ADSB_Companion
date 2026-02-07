@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 clear
+
+# Track total execution time.
+SCRIPT_START_TS=$(date +%s)
 # 🛰️ ADS-B Receiver Setup Script (Raspberry Pi OS Lite / Debian)
 # Author: Daniel S. (HB9IIU)
 # Created: 2026-02-07
@@ -247,6 +250,11 @@ echo "📡  aircraft.json: ${AIRCRAFT_URL}"
 echo
 echo "➡️  Use: ${AIRCRAFT_URL} in the config file for your ESP32 TFT monitor"
 echo
+SCRIPT_END_TS=$(date +%s)
+SCRIPT_ELAPSED=$((SCRIPT_END_TS - SCRIPT_START_TS))
+SCRIPT_MM=$((SCRIPT_ELAPSED / 60))
+SCRIPT_SS=$((SCRIPT_ELAPSED % 60))
+printf "⏱️  Total time: %02d:%02d\n" "$SCRIPT_MM" "$SCRIPT_SS"
 echo "73 de HB9IIU"
 
 # Suggest reboot only if DVB module is still loaded
@@ -255,8 +263,3 @@ if lsmod | grep -q '^dvb_usb_rtl28xxu'; then
   warn "dvb_usb_rtl28xxu is still loaded. Reboot recommended to fully unload it:"
   echo "   sudo reboot"
 fi
-
-# Optional: show readsb invocation line for verification
-echo
-log "readsb invocation (verification)"
-sudo journalctl -u readsb -n 120 --no-pager 2>/dev/null | grep -E 'invoked by:' || true
