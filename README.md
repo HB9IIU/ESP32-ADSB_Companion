@@ -284,7 +284,9 @@ Press ENTER to accept default values.
 
 Open a web browser and navigate to:
 
+```
 http://<PI-IP>/tar1090/
+```
 
 A live aircraft map should be visible.
 
@@ -294,11 +296,15 @@ A live aircraft map should be visible.
 
 The ESP32 firmware fetches aircraft data from the following endpoint:
 
+```
 http://<PI-IP>/tar1090/data/aircraft.json
+```
 
 Example:
 
+```
 http://192.168.0.15/tar1090/data/aircraft.json
+```
 
 Use this URL in the ESP32 configuration file.
 
