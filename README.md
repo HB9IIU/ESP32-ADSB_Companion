@@ -259,9 +259,12 @@ sudo reboot
 
 Download and run the HB9IIU setup script:
 
-wget -O hb9iiuADSBsetupRPI.sh https://raw.githubusercontent.com/HB9IIU/ESP32-ADSB_Companion/main/RPI_ADSB_install_script/hb9iiuADSBsetupRPI.sh  
-chmod +x hb9iiuADSBsetupRPI.sh  
-./hb9iiuADSBsetupRPI.sh  
+```bash
+wget -O hb9iiuADSBsetupRPI.sh \
+   https://raw.githubusercontent.com/HB9IIU/ESP32-ADSB_Companion/main/RPI_ADSB_install_script/hb9iiuADSBsetupRPI.sh
+chmod +x hb9iiuADSBsetupRPI.sh
+./hb9iiuADSBsetupRPI.sh
+```
 
 The script performs the following tasks:
 
