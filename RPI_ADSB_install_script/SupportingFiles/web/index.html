@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HB9IIU · ADS-B Station</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --green:   #00ff88;
+      --amber:   #ffa040;
+      --card-bg: #0d1117;
+      --border:  #1e3a2e;
+      --muted:   #8b949e;
+      --dim:     #30363d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background: #060a06;
+      color: #c9d1d9;
+      font-family: system-ui, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    .site-header {
+      background: #080d08;
+      border-bottom: 1px solid var(--border);
+    }
+    .callsign {
+      font-family: 'Courier New', monospace;
+      color: var(--green);
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+    }
+    .clock {
+      font-family: 'Courier New', monospace;
+      color: var(--amber);
+      font-size: 1rem;
+      min-width: 9ch;
+      text-align: right;
+    }
+
+    /* ── Radar pulse dot ─────────────────────── */
+    .radar-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: var(--green);
+      display: inline-block;
+      animation: rpulse 2s ease-in-out infinite;
+    }
+    @keyframes rpulse {
+      0%,100% { box-shadow: 0 0 0 0   rgba(0,255,136,.5); }
+      50%      { box-shadow: 0 0 0 8px rgba(0,255,136,0);  }
+    }
+
+    /* ── Service cards ───────────────────────── */
+    .scard {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.4rem;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      transition: transform .15s, border-color .15s, box-shadow .15s;
+    }
+    .scard:hover {
+      transform: translateY(-4px);
+      border-color: var(--green);
+      box-shadow: 0 0 24px rgba(0,255,136,.12);
+      color: inherit;
+    }
+    .scard-icon {
+      font-size: 2.4rem;
+      color: var(--green);
+      line-height: 1;
+    }
+    .scard-title {
+      color: #e6edf3;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin: .7rem 0 .25rem;
+    }
+    .scard-desc {
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.5;
+      flex: 1;
+    }
+    .scard-foot {
+      color: var(--dim);
+      font-size: .72rem;
+      margin-top: .9rem;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* ── Status dot ──────────────────────────── */
+    .sdot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #333;
+      display: inline-block;
+      flex-shrink: 0;
+      transition: background .3s, box-shadow .3s;
+    }
+    .sdot.ok  { background: var(--green); box-shadow: 0 0 6px rgba(0,255,136,.55); }
+    .sdot.err { background: #ff4455;      box-shadow: 0 0 6px rgba(255,68,85,.4);  }
+
+    /* ── Aircraft count ──────────────────────── */
+    .ac-big {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--green);
+      font-variant-numeric: tabular-nums;
+      font-family: 'Courier New', monospace;
+      line-height: 1;
+    }
+    .ac-label { color: var(--dim); font-size: .75rem; }
+
+    /* ── Live badge in header ────────────────── */
+    .live-badge {
+      background: #0a1f0a;
+      border: 1px solid var(--border);
+      color: var(--green);
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: .82rem;
+      white-space: nowrap;
+    }
+
+    /* ── Section label ───────────────────────── */
+    .section-label {
+      color: var(--muted);
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    /* ── Map card radial glow ────────────────── */
+    .map-glow {
+      background: radial-gradient(ellipse at 40% 40%, #0a200a 0%, var(--card-bg) 65%);
+    }
+
+    /* ── SMB info bar ────────────────────────── */
+    .smb-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .smb-bar code { color: var(--green); font-size: .8rem; }
+
+    /* ── Footer ──────────────────────────────── */
+    footer { color: var(--dim); font-size: .78rem; border-top: 1px solid #0d1117; }
+
+    /* ── Responsive tweaks ───────────────────── */
+    @media (max-width: 576px) {
+      .callsign { font-size: 1.1rem; }
+      .clock    { font-size: .85rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════ HEADER -->
+<header class="site-header py-3 px-3 px-md-4 mb-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+
+    <div class="d-flex align-items-center gap-3">
+      <span class="radar-dot"></span>
+      <span class="callsign">HB9IIU</span>
+      <span class="text-secondary d-none d-sm-inline" style="font-size:.85rem;">ADS-B Receiver Station</span>
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+      <span class="live-badge">
+        <i class="bi bi-airplane me-1"></i>
+        <span id="hdr-ac">—</span> aircraft
+      </span>
+      <span class="clock" id="clock">--:--:--&nbsp;UTC</span>
+    </div>
+
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════ MAIN -->
+<main class="container-fluid px-3 px-md-4 pb-5" style="max-width:1200px;">
+
+  <!-- Section label -->
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <i class="bi bi-grid-3x3-gap" style="color:var(--green); font-size:.9rem;"></i>
+    <span class="section-label">Services</span>
+  </div>
+
+  <!-- ── Cards grid ── -->
+  <div class="row g-3 g-md-4">
+
+    <!-- Live Map -->
+    <div class="col-12 col-sm-6 col-lg-4">
+      <a href="/tar1090/" class="scard map-glow">
+        <div class="d-flex justify-content-between align-items-start">
+          <span class="scard-icon"><i class="bi bi-radar"></i></span>
+          <span class="sdot" id="dot-map"></span>
+        </div>
+        <div class="scard-title">Live Map</div>
+        <div class="scard-desc">Real-time radar view of all aircraft tracked by readsb / tar1090.</div>
+        <div class="mt-2 d-flex align-items-baseline gap-2">
+          <span class="ac-big" id="card-ac">—</span>
+          <span class="ac-label">aircraft visible now</span>
+        </div>
+        <div class="scard-foot">:80 · /tar1090/</div>
+      </a>
+    </div>
+
+    <!-- ADS-B Stats -->
+    <div class="col-12 col-sm-6 col-lg-4">
+      <a href="/stats.html" class="scard">
+        <div class="d-flex justify-content-between align-items-start">
+          <span class="scard-icon"><i class="bi bi-bar-chart-line"></i></span>
+          <span class="sdot" id="dot-stats"></span>
+        </div>
+        <div class="scard-title">ADS-B Statistics</div>
+        <div class="scard-desc">Aircraft counts, max range, altitude and speed histograms. Auto-refreshed every 15 s by a systemd timer.</div>
+        <div class="scard-foot">:80 · /stats.html</div>
+      </a>
+    </div>
+
+    <!-- Photo Gallery -->
+    <div class="col-12 col-sm-6 col-lg-4">
+      <a href="/gallery.html" class="scard">
+        <div class="d-flex justify-content-between align-items-start">
+          <span class="scard-icon"><i class="bi bi-images"></i></span>
+          <span class="sdot" id="dot-gallery"></span>
+        </div>
+        <div class="scard-title">Photo Gallery</div>
+        <div class="scard-desc">Aircraft photographs pre-rendered as .rgb565 images and served to the ESP32 TFT companion device.</div>
+        <div class="scard-foot">:80 · /gallery.html</div>
+      </a>
+    </div>
+
+    <!-- System Status -->
+    <div class="col-12 col-sm-6 col-lg-4">
+      <a href="#" id="link-status" class="scard">
+        <div class="d-flex justify-content-between align-items-start">
+          <span class="scard-icon"><i class="bi bi-heart-pulse"></i></span>
+          <span class="sdot" id="dot-status"></span>
+        </div>
+        <div class="scard-title">System Status</div>
+        <div class="scard-desc">CPU, memory, temperature, disk usage, uptime and health of all systemd services.</div>
+        <div class="scard-foot">:8080 · /</div>
+      </a>
+    </div>
+
+    <!-- Route Finder -->
+    <div class="col-12 col-sm-6 col-lg-4">
+      <a href="#" id="link-route" class="scard">
+        <div class="d-flex justify-content-between align-items-start">
+          <span class="scard-icon"><i class="bi bi-signpost-split"></i></span>
+          <span class="sdot" id="dot-route"></span>
+        </div>
+        <div class="scard-title">Route Finder</div>
+        <div class="scard-desc">Origin / destination lookup by ICAO hex via hexdb.io. Powers the flight-info page on the ESP32 display.</div>
+        <div class="scard-foot" id="foot-route">:6969 · /api/flight/&lt;hex&gt;</div>
+      </a>
+    </div>
+
+    <!-- Aircraft JSON -->
+    <div class="col-12 col-sm-6 col-lg-4">
+      <a href="/tar1090/data/aircraft.json" class="scard">
+        <div class="d-flex justify-content-between align-items-start">
+          <span class="scard-icon"><i class="bi bi-braces"></i></span>
+          <span class="sdot" id="dot-json"></span>
+        </div>
+        <div class="scard-title">Aircraft JSON</div>
+        <div class="scard-desc">Raw live feed polled by the ESP32. Configure this URL in the companion firmware.</div>
+        <div class="scard-foot">:80 · /tar1090/data/aircraft.json</div>
+      </a>
+    </div>
+
+  </div><!-- /row -->
+
+  <!-- ── SMB shares ── -->
+  <div class="smb-bar d-flex flex-wrap align-items-center gap-4 px-4 py-3 mt-4">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-folder-symlink" style="color:var(--green);"></i>
+      <span class="section-label">SMB Shares</span>
+    </div>
+    <div>
+      <code id="smb-home">\\little-adsb\pi-home</code>
+      <span class="ms-2" style="color:var(--dim); font-size:.75rem;">home folder</span>
+    </div>
+    <div>
+      <code id="smb-www">\\little-adsb\www-html</code>
+      <span class="ms-2" style="color:var(--dim); font-size:.75rem;">web root</span>
+    </div>
+  </div>
+
+  <!-- ── Quick-copy ESP32 URL ── -->
+  <div class="smb-bar d-flex flex-wrap align-items-center gap-3 px-4 py-3 mt-3">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-cpu" style="color:var(--amber);"></i>
+      <span class="section-label" style="color:var(--amber);">ESP32 Feed URL</span>
+    </div>
+    <code id="esp32-url" style="color:var(--amber); font-size:.82rem;"></code>
+    <button class="btn btn-sm py-0" id="copy-btn"
+            style="background:#0a1f0a; border:1px solid var(--border); color:var(--green); font-size:.75rem;"
+            title="Copy to clipboard">
+      <i class="bi bi-clipboard me-1"></i>Copy
+    </button>
+    <span id="copy-ok" style="color:var(--green); font-size:.75rem; display:none;">
+      <i class="bi bi-check2"></i> Copied!
+    </span>
+  </div>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════ FOOTER -->
+<footer class="text-center py-4 mt-2">
+  73 de HB9IIU &nbsp;·&nbsp; ADS-B Station &nbsp;·&nbsp;
+  <span id="hostname" style="font-family:'Courier New',monospace;"></span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const host = window.location.hostname;
+
+  // ── Dynamic links ──────────────────────────────────────────
+  document.getElementById('link-status').href = `http://${host}:8080/`;
+  document.getElementById('link-route').href  = `http://${host}:6969/`;
+  document.getElementById('hostname').textContent = host;
+
+  // SMB paths
+  document.getElementById('smb-home').textContent = `\\\\${host}\\pi-home`;
+  document.getElementById('smb-www').textContent  = `\\\\${host}\\www-html`;
+
+  // ESP32 URL
+  const esp32Url = `http://${host}/tar1090/data/aircraft.json`;
+  document.getElementById('esp32-url').textContent = esp32Url;
+
+  // Copy button — works on plain HTTP via execCommand fallback
+  document.getElementById('copy-btn').addEventListener('click', () => {
+    function showOk() {
+      const ok = document.getElementById('copy-ok');
+      ok.style.display = 'inline';
+      setTimeout(() => { ok.style.display = 'none'; }, 2000);
+    }
+    function fallback() {
+      const ta = document.createElement('textarea');
+      ta.value = esp32Url;
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); showOk(); } catch (_) {}
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(esp32Url).then(showOk).catch(fallback);
+    } else {
+      fallback();
+    }
+  });
+
+  // ── UTC clock ─────────────────────────────────────────────
+  function tickClock() {
+    const n = new Date();
+    const hh = String(n.getUTCHours()).padStart(2, '0');
+    const mm = String(n.getUTCMinutes()).padStart(2, '0');
+    const ss = String(n.getUTCSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${hh}:${mm}:${ss} UTC`;
+  }
+  setInterval(tickClock, 1000);
+  tickClock();
+
+  // ── Dot helpers ────────────────────────────────────────────
+  function setDot(id, state) {          // state: 'ok' | 'err' | null (=checking)
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('ok', 'err');
+    if (state) el.classList.add(state);
+  }
+
+  // ── Aircraft JSON ──────────────────────────────────────────
+  async function fetchAircraft() {
+    try {
+      const r = await fetch('/tar1090/data/aircraft.json', { cache: 'no-store' });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      const count = (d.aircraft || []).filter(a => a.seen < 60).length;
+      document.getElementById('hdr-ac').textContent  = count;
+      document.getElementById('card-ac').textContent = count;
+      setDot('dot-map',  'ok');
+      setDot('dot-json', 'ok');
+    } catch {
+      document.getElementById('hdr-ac').textContent  = '—';
+      document.getElementById('card-ac').textContent = '—';
+      setDot('dot-map',  'err');
+      setDot('dot-json', 'err');
+    }
+  }
+
+  // ── Generic health check (GET, timeout 4 s) ────────────────
+  async function checkUrl(url, dotId) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(4000), cache: 'no-store' });
+      setDot(dotId, (r.ok || r.status < 500) ? 'ok' : 'err');
+    } catch {
+      setDot(dotId, 'err');
+    }
+  }
+
+  // ── Stats / Gallery pages (HEAD is enough) ────────────────
+  async function checkStatic(path, dotId) {
+    try {
+      const r = await fetch(path, { method: 'HEAD', signal: AbortSignal.timeout(4000) });
+      setDot(dotId, r.ok ? 'ok' : 'err');
+    } catch {
+      setDot(dotId, 'err');
+    }
+  }
+
+  // ── Full refresh ───────────────────────────────────────────
+  async function refresh() {
+    await fetchAircraft();
+    checkStatic('/stats.html',   'dot-stats');
+    checkStatic('/gallery.html', 'dot-gallery');
+    checkUrl(`http://${host}:8080/api/status`,  'dot-status');
+    checkUrl(`http://${host}:6969/api/health`,  'dot-route');
+  }
+
+  refresh();
+  setInterval(refresh, 6000);
+})();
+</script>
+</body>
+</html>

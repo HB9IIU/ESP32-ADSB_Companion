@@ -1,0 +1,3 @@
+wget -O activateRouteFinder.sh https://raw.githubusercontent.com/HB9IIU/ESP32-ADSB_Companion/main/pythonTools/ForDevelopmentOnly/extra/activateRouteFinder.sh && \
+chmod +x activateRouteFinder.sh && \
+sudo ./activateRouteFinder.sh
