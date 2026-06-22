@@ -34,13 +34,13 @@ from typing import Any, Dict, List, Optional, Tuple
 # CONFIG (NO CLI ARGS)
 # =========================
 
-ASSET_DIR = Path("/var/www/html/hex")   # JSON files live here
-JPG_DIR   = Path("/var/www/html/jpg")   # JPEG plane photos live here
+ASSET_DIR = Path("/var/www/html/hex")        # JSON files live here
+JPG_DIR   = Path("/var/www/html/jpglarge")   # 800x480 gallery photos
 OUT_HTML  = Path("/var/www/html/gallery.html")
 
 TITLE = "HB9IIU ADS-B Photo Gallery"
 
-JPG_URL_PREFIX = "/jpg/"
+JPG_URL_PREFIX = "/jpglarge/"
 DISK_PATH_FOR_USAGE = Path("/")
 
 INCLUDE_PLACEHOLDERS = True
@@ -274,7 +274,7 @@ def load_items(asset_dir: Path) -> List[AircraftItem]:
         image_status = str(data.get("image_status") or "UNKNOWN")
         image_source = str(data.get("image_source") or "unknown")
 
-        png_name = data.get("image_jpg")
+        png_name = data.get("image_jpg_large") or data.get("image_jpg")
         if not isinstance(png_name, str) or not png_name.strip():
             png_name = f"{hex_id}.jpg"
 

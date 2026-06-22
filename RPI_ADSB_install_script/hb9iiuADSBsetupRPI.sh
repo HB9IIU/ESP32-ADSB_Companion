@@ -57,6 +57,7 @@ VENV_DIR="$BASE_DIR/venv"
 
 WEB_HEX_DIR="/var/www/html/hex"
 WEB_JPG_DIR="/var/www/html/jpg"
+WEB_JPG_LARGE_DIR="/var/www/html/jpglarge"
 WEB_FLAGS_DIR="/var/www/html/flags"
 WEB_INDEX="/var/www/html/index.html"
 
@@ -491,7 +492,7 @@ TMP="$(mktemp -d)"
 cleanup() { rm -rf "$TMP"; }
 trap cleanup EXIT
 
-mkdir -p "$WEB_HEX_DIR" "$WEB_JPG_DIR" "$WEB_FLAGS_DIR"
+mkdir -p "$WEB_HEX_DIR" "$WEB_JPG_DIR" "$WEB_JPG_LARGE_DIR" "$WEB_FLAGS_DIR"
 
 echo "🔽 Cloning repo (sparse-checkout, flags only)..."
 git clone --filter=blob:none --no-checkout "$REPO_URL" "$TMP/repo" >/dev/null
@@ -513,9 +514,11 @@ chown -R "${TARGET_USER}:${TARGET_USER}" "$BASE_DIR"
 chown "${TARGET_USER}:www-data" "$WEB_INDEX"
 chmod 0644 "$WEB_INDEX"
 
-chown -R "${TARGET_USER}:www-data" "$WEB_HEX_DIR"
-find "$WEB_HEX_DIR" -type d -exec chmod 0755 {} \;
-find "$WEB_HEX_DIR" -type f -exec chmod 0644 {} \;
+for web_asset_dir in "$WEB_HEX_DIR" "$WEB_JPG_DIR" "$WEB_JPG_LARGE_DIR"; do
+  chown -R "${TARGET_USER}:www-data" "$web_asset_dir"
+  find "$web_asset_dir" -type d -exec chmod 0755 {} \;
+  find "$web_asset_dir" -type f -exec chmod 0644 {} \;
+done
 ok "Ownership set (user: ${TARGET_USER})"
 
 # ==========================================================

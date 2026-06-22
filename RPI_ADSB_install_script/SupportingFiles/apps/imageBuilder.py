@@ -262,12 +262,14 @@ RECEIVER_JSON = Path("/run/readsb/receiver.json")
 
 OUT_DIR = Path("/var/www/html/hex")
 JPG_OUT_DIR = Path("/var/www/html/jpg")
+JPG_LARGE_OUT_DIR = Path("/var/www/html/jpglarge")
 
 POLL_SECONDS = 5
 MAX_DISTANCE_KM = 1000.0
 LAST_SEEN_WRITE_SEC = 60
 
 TARGET_SIZE = (480, 320)
+LARGE_TARGET_SIZE = (800, 480)
 BANNER_SCAN_WIDTH = 20
 BANNER_CROP_MIN_HEIGHT = 6
 
@@ -277,6 +279,10 @@ HEXDB_IMAGE_URL = "https://hexdb.io/hex-image?hex={hex}"
 # Optional fallback (no CLI flags, no retry logic)
 PLANESPOTTERS_FALLBACK_ENABLED = True
 PLANESPOTTERS_API_URL = "https://api.planespotters.net/pub/photos"
+PLANESPOTTERS_USER_AGENT = (
+    "adsb-image-builder/1.0 "
+    "(+https://github.com/HB9IIU/ESP32-ADSB_Companion)"
+)
 
 # Set your receiver coordinates here (recommended).
 # If left as None, the script will try to read them from receiver.json.
@@ -461,9 +467,21 @@ def fetch_planespotters_image_url(hex_id, registration=None, icao_type=None):
     if icao_type:
         params["icaoType"] = icao_type
 
-    r = requests.get(url, params=params, timeout=15, headers={"User-Agent": "adsb-image-builder/1.0"})
+    r = requests.get(
+        url,
+        params=params,
+        timeout=15,
+        headers={
+            "User-Agent": PLANESPOTTERS_USER_AGENT,
+            "Accept": "application/json",
+        },
+    )
     if r.status_code != 200:
-        raise RuntimeError("planespotters api status " + str(r.status_code))
+        detail = r.text.strip().replace("\n", " ")[:300]
+        raise RuntimeError(
+            f"planespotters api status {r.status_code}"
+            + (f": {detail}" if detail else "")
+        )
 
     data = r.json()
     photos = data.get("photos")
@@ -515,6 +533,18 @@ def write_bytes(path, data):
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_bytes(data)
     tmp.replace(path)
+
+
+def render_and_write_jpeg(img, target_size, output_path, quality=85):
+    """Letterbox an image to an exact size and write it atomically as JPEG."""
+    rendered, fitted_w, fitted_h, off_x, off_y = build_letterboxed_image(
+        img, target_size
+    )
+    buf = BytesIO()
+    rendered.save(buf, format="JPEG", quality=quality, optimize=True)
+    jpg_bytes = buf.getvalue()
+    write_bytes(output_path, jpg_bytes)
+    return fitted_w, fitted_h, off_x, off_y, len(jpg_bytes)
 
 
 def load_last_seen_cache():
@@ -593,6 +623,7 @@ def main():
 
             json_path = OUT_DIR / f"{hex_id}.json"
             jpg_path = JPG_OUT_DIR / f"{hex_id}.jpg"
+            jpg_large_path = JPG_LARGE_OUT_DIR / f"{hex_id}.jpg"
 
             record = read_json(json_path) or {}
             cache_entry = last_seen_cache.get(hex_id, {})
@@ -612,7 +643,7 @@ def main():
                     hexdb = record.get("hexdb") or {}
 
             image_status = record.get("image_status") or "UNKNOWN"
-            files_ready = jpg_path.exists()
+            files_ready = jpg_path.exists() and jpg_large_path.exists()
             if files_ready and image_status in ("OK", "NO_IMAGE"):
                 pass
             else:
@@ -620,8 +651,17 @@ def main():
                     image_url = None
                     image_source = None
 
-                    # 1) Prefer Planespotters (higher quality full-resolution photos)
-                    if PLANESPOTTERS_FALLBACK_ENABLED:
+                    # 1) Prefer HexDB because it usually provides larger images.
+                    try:
+                        image_url = fetch_hexdb_image_url(hex_id)
+                        if image_url:
+                            image_source = "hexdb"
+                            print("  image source: hexdb")
+                    except Exception as e:
+                        print(f"  hexdb image lookup failed for {hex_id}: {e}")
+
+                    # 2) Fallback to Planespotters for wider coverage.
+                    if not image_url and PLANESPOTTERS_FALLBACK_ENABLED:
                         reg = a.get("r") or a.get("reg") or hexdb.get("Registration")
                         icao_type = a.get("t") or a.get("type") or a.get("icaoType")
                         try:
@@ -632,19 +672,9 @@ def main():
                             if ps_url:
                                 image_url = ps_url
                                 image_source = "planespotters"
-                                print("  image source: planespotters")
+                                print("  image source: planespotters (fallback)")
                         except Exception as e:
                             print(f"  planespotters lookup failed for {hex_id}: {e}")
-
-                    # 2) Fallback: HexDB (lower quality thumbnails but wider coverage)
-                    if not image_url:
-                        try:
-                            image_url = fetch_hexdb_image_url(hex_id)
-                            if image_url:
-                                image_source = "hexdb"
-                                print("  image source: hexdb (fallback)")
-                        except Exception as e:
-                            print(f"  hexdb image lookup failed for {hex_id}: {e}")
 
                     if image_url is None:
                         print(f"  no image for {hex_id}, creating placeholder")
@@ -672,13 +702,34 @@ def main():
                         print(f"  [CROP] skipped (threshold={BANNER_CROP_MIN_HEIGHT})")
 
                     JPG_OUT_DIR.mkdir(parents=True, exist_ok=True)
-                    esp_img, fitted_w, fitted_h, off_x, off_y = build_letterboxed_image(img, TARGET_SIZE)
-                    print(f"  letterbox: {orig_w}x{orig_h} -> fitted={fitted_w}x{fitted_h} offsets={off_x},{off_y}")
-                    buf = BytesIO()
-                    esp_img.save(buf, format="JPEG", quality=85, optimize=True)
-                    jpg_bytes = buf.getvalue()
-                    write_bytes(jpg_path, jpg_bytes)
-                    print(f"  wrote: {jpg_path.name} ({len(jpg_bytes)} bytes)")
+                    JPG_LARGE_OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+                    fitted_w, fitted_h, off_x, off_y, byte_count = (
+                        render_and_write_jpeg(img, TARGET_SIZE, jpg_path)
+                    )
+                    print(
+                        f"  letterbox small: {orig_w}x{orig_h} -> "
+                        f"fitted={fitted_w}x{fitted_h} offsets={off_x},{off_y}"
+                    )
+                    print(
+                        f"  wrote: {jpg_path} "
+                        f"({TARGET_SIZE[0]}x{TARGET_SIZE[1]}, {byte_count} bytes)"
+                    )
+
+                    fitted_w, fitted_h, off_x, off_y, byte_count = (
+                        render_and_write_jpeg(
+                            img, LARGE_TARGET_SIZE, jpg_large_path
+                        )
+                    )
+                    print(
+                        f"  letterbox large: {orig_w}x{orig_h} -> "
+                        f"fitted={fitted_w}x{fitted_h} offsets={off_x},{off_y}"
+                    )
+                    print(
+                        f"  wrote: {jpg_large_path} "
+                        f"({LARGE_TARGET_SIZE[0]}x{LARGE_TARGET_SIZE[1]}, "
+                        f"{byte_count} bytes)"
+                    )
                 except Exception as e:
                     print(f"image build failed for {hex_id}: {e}")
                     image_status = "ERROR"
@@ -704,6 +755,7 @@ def main():
                 "image_status": image_status,
                 "image_source": image_source,
                 "image_jpg": jpg_path.name,
+                "image_jpg_large": jpg_large_path.name,
                 "flag_rgb565": (iso2 + ".rgb565") if iso2 else None
             }
 
