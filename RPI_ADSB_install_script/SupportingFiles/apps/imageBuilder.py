@@ -172,6 +172,7 @@ ICAO24_COUNTRIES = [
     (0x900000, 0x9007FF, "Marshall Islands"),
     (0x901000, 0x9017FF, "Cook Islands"),
     (0x902000, 0x9027FF, "Samoa"),
+    (0xA00000, 0xAFFFFF, "United States"),
     (0xC00000, 0xC3FFFF, "Canada"),
     (0xC80000, 0xC87FFF, "New Zealand"),
     (0xC88000, 0xC88FFF, "Fiji"),
